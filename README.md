@@ -117,6 +117,7 @@ This project is for **educational purposes only**. It is not financial advice. A
 
 ## 👤 Author
 
-Made by: [Vansh Singh]
+Made by: Vansh Singh
+
 College: Vivekananda Institute of Professional Studies, Delhi  
 Branch: B.Tech AI & Data Science
