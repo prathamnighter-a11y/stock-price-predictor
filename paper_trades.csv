@@ -1,0 +1,2 @@
+Date,Ticker,Signal,Price_At_Signal,Predicted_7d,Check_Date,Actual_Price,Predicted_Change_pct,Actual_Change_pct,Direction_Correct,Result
+2026-10-23,RELIANCE.NS,BUY,1170.5,1199.5,2026-11-02,,2.48,,,PENDING

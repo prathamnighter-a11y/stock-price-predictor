@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stock Predictor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #21262d;
+    --text:      #e6edf3;
+    --muted:     #7d8590;
+    --green:     #3fb950;
+    --green-dim: #1a3a1f;
+    --red:       #f85149;
+    --red-dim:   #3a1a1a;
+    --yellow:    #d29922;
+    --yellow-dim:#3a2e1a;
+    --blue:      #58a6ff;
+    --accent:    #1f6feb;
+    --font:      'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -.3px;
+    color: var(--text);
+  }
+  header span {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  /* ── Search bar ── */
+  .search-bar {
+    padding: 20px 28px;
+    display: flex;
+    gap: 10px;
+    max-width: 560px;
+  }
+  .search-bar input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 9px 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar input::placeholder { color: var(--muted); }
+  .search-bar button {
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 22px;
+    transition: opacity .15s;
+  }
+  .search-bar button:hover { opacity: .85; }
+  .search-bar button:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── Main grid ── */
+  .main { padding: 0 28px 40px; }
+
+  .status-msg {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 20px;
+    min-height: 20px;
+  }
+  .status-msg.error { color: var(--red); }
+
+  /* ── Signal badge ── */
+  .signal-banner {
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border: 1px solid transparent;
+  }
+  .signal-banner.BUY, .signal-banner.STRONG {
+    background: var(--green-dim); border-color: var(--green);
+  }
+  .signal-banner.SELL {
+    background: var(--red-dim); border-color: var(--red);
+  }
+  .signal-banner.HOLD {
+    background: var(--yellow-dim); border-color: var(--yellow);
+  }
+  .signal-banner .badge {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+  }
+  .signal-banner.BUY .badge,
+  .signal-banner.STRONG .badge  { color: var(--green); }
+  .signal-banner.SELL .badge    { color: var(--red); }
+  .signal-banner.HOLD .badge    { color: var(--yellow); }
+  .signal-meta { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .signal-meta b { color: var(--text); }
+
+  /* ── Cards grid ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .card-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 6px;
+  }
+  .card-value {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -.5px;
+  }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .up   { color: var(--green); }
+  .down { color: var(--red); }
+  .neu  { color: var(--yellow); }
+
+  /* ── Chart panels ── */
+  .charts { display: grid; gap: 16px; margin-bottom: 20px; }
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .chart-panel h3 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  canvas { max-height: 220px; }
+
+  /* ── Indicators row ── */
+  .indicators {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .indicators h3 {
+    font-size: 13px; font-weight: 500;
+    color: var(--muted); margin-bottom: 14px;
+  }
+  .ind-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .ind-item { display: flex; flex-direction: column; gap: 4px; }
+  .ind-name { font-size: 11px; color: var(--muted); }
+  .ind-val  { font-size: 15px; font-weight: 600; }
+  .ind-note { font-size: 11px; color: var(--muted); }
+
+  /* ── Future table ── */
+  .future-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .future-panel h3 {
+    font-size: 13px; font-weight: 500;
+    color: var(--muted); margin-bottom: 14px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { color: var(--muted); font-weight: 500; text-align: left;
+       padding: 6px 0; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── Paper trades ── */
+  .trades-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .trades-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  }
+  .trades-header h3 {
+    font-size: 13px; font-weight: 500; color: var(--muted);
+  }
+  .trades-header button {
+    margin-left: auto;
+    background: var(--border);
+    border: none; border-radius: 5px;
+    color: var(--text); cursor: pointer;
+    font-size: 12px; padding: 5px 14px;
+    transition: background .15s;
+  }
+  .trades-header button:hover { background: var(--accent); }
+  .log-form {
+    display: none;
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
+    gap: 8px;
+    margin-bottom: 14px;
+    align-items: end;
+  }
+  .log-form.open { display: grid; }
+  .log-form label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .log-form input, .log-form select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+  }
+  .log-form input:focus, .log-form select:focus { border-color: var(--accent); }
+  .log-form .save-btn {
+    background: var(--accent);
+    border: none; border-radius: 5px;
+    color: #fff; cursor: pointer;
+    font-size: 13px; padding: 7px 18px;
+    white-space: nowrap;
+  }
+  .result-badge {
+    display: inline-block;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+  }
+  .result-badge.WIN     { background: var(--green-dim); color: var(--green); }
+  .result-badge.LOSS    { background: var(--red-dim);   color: var(--red);   }
+  .result-badge.PENDING { background: var(--border);    color: var(--muted); }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-left: 8px;
+  }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #dashboard { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2">
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+  </svg>
+  <h1>Stock Predictor</h1>
+  <span>Powered by Random Forest · Paper trading only</span>
+</header>
+
+<div class="search-bar">
+  <input id="ticker-input" type="text" placeholder="Enter ticker — e.g. TCS.NS, RELIANCE.NS, BAJFINANCE.NS"
+         value="TCS.NS" />
+  <button id="predict-btn" onclick="runPredict()">
+    Predict <span class="spinner" id="spin"></span>
+  </button>
+</div>
+
+<div class="main">
+  <p class="status-msg" id="status">Enter a ticker and click Predict to start.</p>
+
+  <div id="dashboard">
+
+    <!-- Signal banner -->
+    <div class="signal-banner" id="signal-banner">
+      <div class="badge" id="signal-text">—</div>
+      <div class="signal-meta" id="signal-meta"></div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Current Price</div>
+        <div class="card-value" id="c-price">—</div>
+        <div class="card-sub" id="c-ticker">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Tomorrow</div>
+        <div class="card-value" id="c-tomorrow">—</div>
+        <div class="card-sub" id="c-tomorrow-chg">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">In 7 Days</div>
+        <div class="card-value" id="c-week">—</div>
+        <div class="card-sub" id="c-week-chg">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Direction Accuracy</div>
+        <div class="card-value" id="c-diracc">—</div>
+        <div class="card-sub">on test data</div>
+      </div>
+      <div class="card">
+        <div class="card-label">RSI</div>
+        <div class="card-value" id="c-rsi">—</div>
+        <div class="card-sub" id="c-rsi-note">—</div>
+      </div>
+    </div>
+
+    <!-- Indicator checks -->
+    <div class="indicators">
+      <h3>Indicator checks</h3>
+      <div class="ind-grid">
+        <div class="ind-item">
+          <span class="ind-name">Price vs MA20</span>
+          <span class="ind-val" id="ind-ma20">—</span>
+          <span class="ind-note" id="ind-ma20-note">—</span>
+        </div>
+        <div class="ind-item">
+          <span class="ind-name">Price vs MA50</span>
+          <span class="ind-val" id="ind-ma50">—</span>
+          <span class="ind-note" id="ind-ma50-note">—</span>
+        </div>
+        <div class="ind-item">
+          <span class="ind-name">High Volume</span>
+          <span class="ind-val" id="ind-vol">—</span>
+          <span class="ind-note">vs 20-day average</span>
+        </div>
+        <div class="ind-item">
+          <span class="ind-name">Price Accuracy</span>
+          <span class="ind-val" id="ind-pacc">—</span>
+          <span class="ind-note">on test data</span>
+        </div>
+        <div class="ind-item">
+          <span class="ind-name">MAE</span>
+          <span class="ind-val" id="ind-mae">—</span>
+          <span class="ind-note">avg ₹ error</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Price chart -->
+    <div class="charts">
+      <div class="chart-panel">
+        <h3>Price (last 60 days) + Moving averages + 7-day forecast</h3>
+        <canvas id="price-chart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <h3>RSI</h3>
+        <canvas id="rsi-chart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <h3>Volume</h3>
+        <canvas id="vol-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- 7-day table -->
+    <div class="future-panel">
+      <h3>7-day forecast</h3>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Predicted price</th><th>Change</th><th>Direction</th></tr>
+        </thead>
+        <tbody id="future-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Paper trades -->
+    <div class="trades-panel">
+      <div class="trades-header">
+        <h3>Paper trades</h3>
+        <button onclick="checkTrades()">Check pending</button>
+        <button onclick="toggleLogForm()">+ Log trade</button>
+      </div>
+
+      <div class="log-form" id="log-form">
+        <div>
+          <label>Ticker</label>
+          <input id="lt-ticker" placeholder="TCS.NS" />
+        </div>
+        <div>
+          <label>Signal</label>
+          <select id="lt-signal">
+            <option>STRONG BUY</option>
+            <option>BUY</option>
+            <option>HOLD</option>
+            <option>SELL / AVOID</option>
+          </select>
+        </div>
+        <div>
+          <label>Price now (₹)</label>
+          <input id="lt-price" type="number" placeholder="2550" />
+        </div>
+        <div>
+          <label>Predicted 7d (₹)</label>
+          <input id="lt-pred" type="number" placeholder="2511" />
+        </div>
+        <button class="save-btn" onclick="logTrade()">Save</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Ticker</th><th>Signal</th>
+            <th>Entry ₹</th><th>Predicted ₹</th>
+            <th>Check date</th><th>Actual ₹</th><th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="trades-tbody"></tbody>
+      </table>
+      <p id="scorecard" style="margin-top:14px; font-size:13px; color:var(--muted);"></p>
+    </div>
+
+  </div><!-- /dashboard -->
+</div><!-- /main -->
+
+<script>
+let priceChart, rsiChart, volChart;
+
+function sgClass(signal) {
+  if (signal.includes("BUY"))  return "BUY";
+  if (signal.includes("SELL")) return "SELL";
+  return "HOLD";
+}
+function chgHtml(v) {
+  const cls = v > 0 ? "up" : v < 0 ? "down" : "neu";
+  return `<span class="${cls}">${v > 0 ? "+" : ""}${v}%</span>`;
+}
+function fmt(n) { return "₹" + Number(n).toLocaleString("en-IN", {minimumFractionDigits:2}); }
+
+async function runPredict() {
+  const ticker = document.getElementById("ticker-input").value.trim().toUpperCase();
+  if (!ticker) return;
+
+  const btn  = document.getElementById("predict-btn");
+  const spin = document.getElementById("spin");
+  const stat = document.getElementById("status");
+
+  btn.disabled = true;
+  spin.classList.add("active");
+  stat.className = "status-msg";
+  stat.textContent = `Fetching & training model for ${ticker} — this takes 10–20 seconds…`;
+  document.getElementById("dashboard").style.display = "none";
+
+  try {
+    const res  = await fetch(`/api/predict?ticker=${encodeURIComponent(ticker)}`);
+    const data = await res.json();
+
+    if (data.error) {
+      stat.className = "status-msg error";
+      stat.textContent = "Error: " + data.error;
+      return;
+    }
+
+    stat.textContent = `Model trained on 2 years of ${data.ticker} data. Paper trade before real money!`;
+    document.getElementById("dashboard").style.display = "block";
+    renderDashboard(data);
+    loadTrades();
+  } catch(e) {
+    stat.className = "status-msg error";
+    stat.textContent = "Could not connect to Flask server. Make sure app.py is running.";
+  } finally {
+    btn.disabled = false;
+    spin.classList.remove("active");
+  }
+}
+
+function renderDashboard(d) {
+  // Signal banner
+  const banner = document.getElementById("signal-banner");
+  banner.className = "signal-banner " + sgClass(d.signal);
+  document.getElementById("signal-text").textContent = d.signal;
+  document.getElementById("signal-meta").innerHTML =
+    `<b>${d.ticker}</b> · current ${fmt(d.current_price)}<br>` +
+    `Predicted 7-day change: ${d.chg_week > 0 ? "+" : ""}${d.chg_week}% · ` +
+    `Direction accuracy: ${d.dir_accuracy}%`;
+
+  // Stat cards
+  document.getElementById("c-price").textContent     = fmt(d.current_price);
+  document.getElementById("c-ticker").textContent    = d.ticker;
+  document.getElementById("c-tomorrow").textContent  = fmt(d.pred_tomorrow);
+  document.getElementById("c-tomorrow-chg").innerHTML= chgHtml(d.chg_tomorrow);
+  document.getElementById("c-week").textContent      = fmt(d.pred_7day);
+  document.getElementById("c-week-chg").innerHTML    = chgHtml(d.chg_week);
+  document.getElementById("c-diracc").textContent    = d.dir_accuracy + "%";
+  document.getElementById("c-rsi").textContent       = d.rsi;
+  document.getElementById("c-rsi-note").textContent  =
+    d.rsi > 70 ? "Overbought" : d.rsi < 30 ? "Oversold" : "Neutral";
+  document.getElementById("c-rsi").className =
+    "card-value " + (d.rsi > 70 ? "down" : d.rsi < 30 ? "up" : "neu");
+
+  // Indicators
+  document.getElementById("ind-ma20").textContent    = fmt(d.ma20);
+  document.getElementById("ind-ma20").className      = "ind-val " + (d.above_ma20 ? "up" : "down");
+  document.getElementById("ind-ma20-note").textContent= d.above_ma20 ? "Price above — bullish" : "Price below — bearish";
+  document.getElementById("ind-ma50").textContent    = fmt(d.ma50);
+  document.getElementById("ind-ma50").className      = "ind-val " + (d.above_ma50 ? "up" : "down");
+  document.getElementById("ind-ma50-note").textContent= d.above_ma50 ? "Price above — bullish" : "Price below — bearish";
+  document.getElementById("ind-vol").textContent     = d.high_volume ? "Yes" : "No";
+  document.getElementById("ind-vol").className       = "ind-val " + (d.high_volume ? "up" : "neu");
+  document.getElementById("ind-pacc").textContent    = d.price_accuracy + "%";
+  document.getElementById("ind-pacc").className      = "ind-val up";
+  document.getElementById("ind-mae").textContent     = fmt(d.mae);
+
+  // Charts
+  buildCharts(d);
+
+  // 7-day table
+  const tbody = document.getElementById("future-tbody");
+  tbody.innerHTML = "";
+  d.future.forEach((row, i) => {
+    const chg = (((row.price - d.current_price) / d.current_price) * 100).toFixed(2);
+    const dir = chg > 0 ? "↑" : "↓";
+    const cls = chg > 0 ? "up" : "down";
+    tbody.innerHTML += `<tr>
+      <td>${row.date}</td>
+      <td>${fmt(row.price)}</td>
+      <td class="${cls}">${chg > 0 ? "+" : ""}${chg}%</td>
+      <td class="${cls}">${dir}</td>
+    </tr>`;
+  });
+
+  // Pre-fill log form
+  document.getElementById("lt-ticker").value  = d.ticker;
+  document.getElementById("lt-signal").value  = d.signal.includes("BUY") ? d.signal :
+    d.signal.includes("SELL") ? "SELL / AVOID" : "HOLD";
+  document.getElementById("lt-price").value   = d.current_price;
+  document.getElementById("lt-pred").value    = d.pred_7day;
+}
+
+function buildCharts(d) {
+  const allDates  = [...d.chart.dates, ...d.future.map(f => f.date)];
+  const closeExt  = [...d.chart.close, ...Array(d.future.length).fill(null)];
+  const futureExt = [...Array(d.chart.close.length - 1).fill(null),
+                     d.chart.close[d.chart.close.length - 1],
+                     ...d.future.map(f => f.price)];
+  const ma20Ext   = [...d.chart.ma20, ...Array(d.future.length).fill(null)];
+  const ma50Ext   = [...d.chart.ma50, ...Array(d.future.length).fill(null)];
+
+  const gridColor   = "rgba(255,255,255,.05)";
+  const tickColor   = "#7d8590";
+
+  function baseOpts(label) {
+    return {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { labels: { color: tickColor, boxWidth: 12, font: {size:11} } } },
+      scales: {
+        x: { ticks: { color: tickColor, maxTicksLimit: 8, font:{size:10} },
+             grid:  { color: gridColor } },
+        y: { ticks: { color: tickColor, font:{size:10} },
+             grid:  { color: gridColor } }
+      }
+    };
+  }
+
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart(document.getElementById("price-chart"), {
+    type: "line",
+    data: {
+      labels: allDates,
+      datasets: [
+        { label: "Close",    data: closeExt,  borderColor:"#58a6ff", borderWidth:1.5,
+          pointRadius:0, tension:.3 },
+        { label: "Forecast", data: futureExt, borderColor:"#3fb950", borderWidth:2,
+          borderDash:[5,4], pointRadius:3, pointBackgroundColor:"#3fb950", tension:.3 },
+        { label: "MA20",     data: ma20Ext,   borderColor:"#a371f7", borderWidth:1,
+          pointRadius:0, borderDash:[3,3], tension:.3 },
+        { label: "MA50",     data: ma50Ext,   borderColor:"#f85149", borderWidth:1,
+          pointRadius:0, borderDash:[3,3], tension:.3 },
+      ]
+    },
+    options: baseOpts("Price")
+  });
+
+  if (rsiChart) rsiChart.destroy();
+  rsiChart = new Chart(document.getElementById("rsi-chart"), {
+    type: "line",
+    data: {
+      labels: d.chart.dates,
+      datasets: [
+        { label: "RSI", data: d.chart.rsi, borderColor:"#a371f7",
+          borderWidth:1.5, pointRadius:0, tension:.3,
+          fill: { target: {value:70}, above:"rgba(248,81,73,.15)" } }
+      ]
+    },
+    options: { ...baseOpts("RSI"),
+      scales: { ...baseOpts().scales,
+        x: { ticks:{color:tickColor,maxTicksLimit:6,font:{size:10}}, grid:{color:gridColor} },
+        y: { min:0, max:100, ticks:{color:tickColor,font:{size:10}}, grid:{color:gridColor} }
+      },
+      plugins: {
+        legend:{labels:{color:tickColor,boxWidth:12,font:{size:11}}},
+        annotation:{}
+      }
+    }
+  });
+
+  if (volChart) volChart.destroy();
+  volChart = new Chart(document.getElementById("vol-chart"), {
+    type: "bar",
+    data: {
+      labels: d.chart.dates,
+      datasets: [
+        { label:"Volume", data:d.chart.volume,
+          backgroundColor:"rgba(88,166,255,.25)", borderColor:"rgba(88,166,255,.5)",
+          borderWidth:1 }
+      ]
+    },
+    options: baseOpts("Volume")
+  });
+}
+
+// ── Paper trades ──────────────────────────────────────────────────
+function toggleLogForm() {
+  document.getElementById("log-form").classList.toggle("open");
+}
+
+async function logTrade() {
+  const body = {
+    ticker:    document.getElementById("lt-ticker").value.toUpperCase(),
+    signal:    document.getElementById("lt-signal").value,
+    price:     document.getElementById("lt-price").value,
+    predicted: document.getElementById("lt-pred").value,
+  };
+  await fetch("/api/trades", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  document.getElementById("log-form").classList.remove("open");
+  loadTrades();
+}
+
+async function loadTrades() {
+  const res    = await fetch("/api/trades");
+  const trades = await res.json();
+  const tbody  = document.getElementById("trades-tbody");
+  tbody.innerHTML = "";
+
+  if (!trades.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);padding:12px 0">No trades logged yet.</td></tr>`;
+    document.getElementById("scorecard").textContent = "";
+    return;
+  }
+
+  trades.forEach(t => {
+    const res = t.Result || "PENDING";
+    tbody.innerHTML += `<tr>
+      <td>${t.Date}</td>
+      <td>${t.Ticker}</td>
+      <td>${t.Signal}</td>
+      <td>${fmt(t.Price_At_Signal)}</td>
+      <td>${fmt(t.Predicted_7d)}</td>
+      <td>${t.Check_Date}</td>
+      <td>${t.Actual_Price ? fmt(t.Actual_Price) : "—"}</td>
+      <td><span class="result-badge ${res}">${res}</span></td>
+    </tr>`;
+  });
+
+  const done  = trades.filter(t => t.Result !== "PENDING");
+  const wins  = done.filter(t  => t.Result === "WIN").length;
+  if (done.length) {
+    const rate = ((wins / done.length) * 100).toFixed(1);
+    document.getElementById("scorecard").textContent =
+      `Score: ${wins}/${done.length} correct (${rate}% win rate) · ${trades.length - done.length} pending`;
+  } else {
+    document.getElementById("scorecard").textContent =
+      `${trades.length} trade(s) pending · come back on check date to score them`;
+  }
+}
+
+async function checkTrades() {
+  const stat = document.getElementById("status");
+  stat.textContent = "Checking pending trades…";
+  const res  = await fetch("/api/trades/check", {method:"POST"});
+  const data = await res.json();
+  stat.textContent = data.checked
+    ? `Checked ${data.checked} trade(s) — scores updated.`
+    : "No trades due for checking yet.";
+  loadTrades();
+}
+
+// Auto-load trades on start
+loadTrades();
+
+// Enter key triggers predict
+document.getElementById("ticker-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") runPredict();
+});
+</script>
+</body>
+</html>
